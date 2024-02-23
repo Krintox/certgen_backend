@@ -5,7 +5,7 @@ const PostSchema = new Schema({
   title:String,
   summary:String,
   content:String,
-  cover:String,
+  cover:[String],
   accepted: Boolean,
   status: Boolean,
   author:{type:Schema.Types.ObjectId, ref:'User'},

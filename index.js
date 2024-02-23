@@ -8,7 +8,11 @@ const app = express();
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const multer = require('multer');
-const uploadMiddleware = multer({ dest: 'uploads/' });
+
+const uploadMiddleware = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB per file
+});
 const fs = require('fs');
 
 const salt = bcrypt.genSaltSync(10);
@@ -73,59 +77,59 @@ app.post('/logout', (req,res) => {
   res.cookie('token', '').json('ok');
 });
 
-app.post('/post', uploadMiddleware.single('file'), async (req,res) => {
-  const {originalname,path} = req.file;
-  const parts = originalname.split('.');
-  const ext = parts[parts.length - 1];
-  const newPath = path+'.'+ext;
-  fs.renameSync(path, newPath);
-
+app.post('/post', uploadMiddleware.array('files', 300), async (req,res) => {
+  const files = req.files;
   const {token} = req.cookies;
   jwt.verify(token, secret, {}, async (err,info) => {
     if (err) throw err;
-    const {title,summary,content} = req.body;
+    const {title} = req.body;
+    const postPhotos = [];
+    for (let i = 0; i < files.length; i++) {
+      const newPath = files[i].path;
+      postPhotos.push(newPath);
+    }
     const postDoc = await Post.create({
       title,
-      summary,
-      content,
-      cover:newPath,
-      author:info.id,
+      cover: postPhotos,
+      author: info.id,
     });
     res.json(postDoc);
   });
-
 });
 
-app.put('/post',uploadMiddleware.single('file'), async (req,res) => {
-  let newPath = null;
-  if (req.file) {
-    const {originalname,path} = req.file;
-    const parts = originalname.split('.');
-    const ext = parts[parts.length - 1];
-    newPath = path+'.'+ext;
-    fs.renameSync(path, newPath);
-  }
 
-  const {token} = req.cookies;
-  jwt.verify(token, secret, {}, async (err,info) => {
+app.put('/post', uploadMiddleware.array('files', 300), async (req, res) => {
+  const files = req.files; // Array of uploaded files
+  const { token } = req.cookies;
+
+  jwt.verify(token, secret, {}, async (err, info) => {
     if (err) throw err;
-    const {id,title,summary,content} = req.body;
+
+    const { id, title } = req.body;
+
     const postDoc = await Post.findById(id);
     const isAuthor = JSON.stringify(postDoc.author) === JSON.stringify(info.id);
     if (!isAuthor) {
       return res.status(400).json('you are not the author');
     }
-    await postDoc.update({
-      title,
-      summary,
-      content,
-      cover: newPath ? newPath : postDoc.cover,
-    });
+
+    // Update post fields
+    postDoc.title = title;
+
+    // Handle each file
+    for (const file of files) {
+      const newPath = file.path + '.' + file.originalname.split('.').pop();
+      fs.renameSync(file.path, newPath);
+      postDoc.cover = newPath; // Update cover image path
+    }
+
+    // Save the updated post
+    await postDoc.save();
 
     res.json(postDoc);
   });
-
 });
+
 
 app.get('/post', async (req,res) => {
   res.json(
@@ -141,14 +145,6 @@ app.get('/post/:id', async (req, res) => {
   const postDoc = await Post.findById(id).populate('author', ['username']);
   res.json(postDoc);
 })
-
-// app.put('/post/:{id}', async (req,res) => {
-//   const {id} = req.params;
-//   const post = Post.findByIdAndUpdate(
-//     id,
-
-//   )
-// })
 
 app.listen(4000, () => {
   console.log("Server started at port 4000");
