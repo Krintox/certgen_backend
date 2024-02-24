@@ -77,25 +77,34 @@ app.post('/logout', (req,res) => {
   res.cookie('token', '').json('ok');
 });
 
-app.post('/post', uploadMiddleware.array('files', 300), async (req,res) => {
+app.post('/post', uploadMiddleware.array('files', 300), async (req, res) => {
   const files = req.files;
-  const {token} = req.cookies;
-  jwt.verify(token, secret, {}, async (err,info) => {
+  const { token } = req.cookies;
+
+  jwt.verify(token, secret, {}, async (err, info) => {
     if (err) throw err;
-    const {title} = req.body;
+
+    const { title } = req.body;
     const postPhotos = [];
+
     for (let i = 0; i < files.length; i++) {
-      const newPath = files[i].path;
-      postPhotos.push(newPath);
+      const file = files[i];
+      const fileExtension = file.originalname.split('.').pop(); // Get the file extension
+      const newPath = `${file.path}.${fileExtension}`; // Append the extension to the path
+      fs.renameSync(file.path, newPath); // Rename the file with the extension
+      postPhotos.push(newPath); // Save the file path with extension
     }
+
     const postDoc = await Post.create({
       title,
       cover: postPhotos,
       author: info.id,
     });
+
     res.json(postDoc);
   });
 });
+
 
 
 app.put('/post', uploadMiddleware.array('files', 300), async (req, res) => {
