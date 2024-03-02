@@ -3,7 +3,8 @@ const cors = require('cors');
 const mongoose = require("mongoose");
 const User = require('./models/User');
 const Post = require('./models/Post');
-const ProcessModel = require('./models/Process');
+const Project = require('./models/Project');
+const Profile = require('./models/Profile')
 const bcrypt = require('bcryptjs');
 const app = express();
 const jwt = require('jsonwebtoken');
@@ -19,10 +20,41 @@ const uploadMiddleware = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, './uploads');
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now());
+  }
+});
+
+// Multer storage configuration for project-related file uploads
+const projectStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Destination based on file type
+    if (file.fieldname === 'excelFile') {
+      cb(null, './uploads/excel');
+    } else if (file.fieldname === 'imageFile') {
+      cb(null, './uploads/images');
+    } else if (file.fieldname === 'arrayOfImages') {
+      cb(null, './uploads/arrayImages');
+    } else {
+      cb(null, './uploads'); // Default destination
+    }
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now());
+  }
+});
+const upload = multer({ storage: storage });
+const projectUpload = multer({ storage: projectStorage });
+
+
 const salt = bcrypt.genSaltSync(10);
 const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 
-app.use(cors({credentials:true,origin:'http://localhost:3000'}));
+app.use(cors({credentials:true,origin:'http://localhost:3001'}));
 app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(__dirname + '/uploads'));
@@ -177,63 +209,177 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// POST endpoint to process excel and image
-app.post('/process-excel-and-image', uploadMiddleware.fields([{ name: 'excel', maxCount: 1 }, { name: 'image', maxCount: 1 }]), async (req, res) => {
+// Endpoint for profiling
+app.post('/profile123', upload.single('profileImage'), async (req, res) => {
   try {
-    // Extract the uploaded files from the request
-    const excelFile = req.files['excel'][0];
-    const imageFile = req.files['image'][0];
+    const { token } = req.cookies;
 
-    // Save the input image to the database
-    const imagePath = `uploads/${Date.now()}_${imageFile.originalname}`;
+    // Verify JWT token
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
 
-    // Call the external API with Excel data and local image file
-    const apiResponse = await axios.post('http://external-api-url', {
-      excelData: excelFile.buffer,
-      image: imageFile.buffer,
-    });
+      // Get user ID from JWT payload
+      const userId = info.id;
 
-    // Extract email array and image data from API response
-    const { emailArray, images } = apiResponse.data;
+      // Retrieve user information
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
 
-    // Store email array in the database
-    // Assuming you have a model named Process to store processed data
-    const processDoc = await ProcessModel.create({
-      excelData: excelData,
-      emailArray,
-      imagePath: images, // Storing the image path for future reference
-    });
+      // Parse request body for profile data
+      const { firstName, lastName, organizationName, profession } = req.body;
 
-    // Send emails with corresponding images
-    for (let i = 0; i < emailArray.length; i++) {
-      const mailOptions = {
-        from: 'youremail@gmail.com',
-        to: emailArray[i],
-        subject: 'Processed Image',
-        text: 'Please find the processed image attached.',
-        attachments: [{
-          filename: 'certificate.jpg', // Assuming the image format is JPEG
-          content: images[i], // Attach the base64 image directly
-        }]
-      };
+      // Validate required fields
+      if (!firstName || !lastName || !organizationName || !profession) {
+        return res.status(400).json({ message: 'All fields are required' });
+      }
 
-      // Send email
-      transporter.sendMail(mailOptions, function(error, info) {
-        if (error) {
-          console.log('Error sending email:', error);
-        } else {
-          console.log('Email sent:', info.response);
-        }
+      // Create profile object
+      const profile = new Profile({
+        firstName,
+        lastName,
+        organizationName,
+        profession,
+        profileImage: req.file ? req.file.path : null, // Path to uploaded profile image
+        authorId: userId // Associate profile with user
       });
-    }
 
-    res.status(200).json({ message: 'Emails sent successfully', processDoc });
+      // Save profile to database
+      await profile.save();
 
+      res.json({ message: 'Profile created successfully' });
+    });
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error in /profile endpoint:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+// POST /createProject endpoint
+
+app.post('/createProject', projectUpload.fields([{ name: 'excelFile', maxCount: 1 }, { name: 'imageFile', maxCount: 1 }, { name: 'arrayOfImages', maxCount: 30 }]), async (req, res) => {
+  try {
+    const { token } = req.cookies;
+
+    // Verify JWT token
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const { title } = req.body;
+      const excelFile = req.files['excelFile'][0].filename;
+      const imageFile = req.files['imageFile'][0].filename;
+      const arrayOfImages = req.files['arrayOfImages'].map(file => file.filename);
+
+      // Create new project
+      const project = new Project({
+        userId: info.id,
+        title,
+        excelFile,
+        imageFile,
+        arrayOfImages
+      });
+
+      await project.save();
+
+      res.status(201).json({ message: 'Project created successfully' });
+    });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// GET endpoint to retrieve project details
+app.get('/projects', async (req, res) => {
+  try {
+    const { token } = req.cookies;
+
+    // Verify JWT token
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      // Get user ID from JWT payload
+      const userId = info.id;
+
+      // Find projects belonging to the user
+      const projects = await Project.find({ userId });
+
+      res.json(projects);
+    });
+  } catch (error) {
+    console.error('Error in GET /projects endpoint:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.get('/projects/:id', async (req, res) => {
+  try {
+    const { token } = req.cookies;
+
+    // Verify JWT token
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      // Get user ID from JWT payload
+      const userId = info.id;
+
+      // Find the project by ID and ensure it belongs to the user
+      const project = await Project.findOne({ _id: req.params.id, userId });
+
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+
+      res.json(project);
+    });
+  } catch (error) {
+    console.error('Error in GET /projects/:id endpoint:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+
+// GET request endpoint for retrieving profile details for a particular user
+app.get('/profile123', async (req, res) => {
+  try {
+    const { token } = req.cookies;
+
+    // Verify JWT token to ensure user authentication
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      // Retrieve user information
+      const user = await User.findById(info.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Retrieve profile associated with the user
+      const profile = await Profile.findOne({ authorId: info.id });
+      if (!profile) {
+        return res.status(404).json({ message: 'Profile not found for this user' });
+      }
+
+      res.json(profile);
+    });
+  } catch (error) {
+    console.error('Error in /profile endpoint:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 
 app.get('/post', async (req,res) => {
   res.json(
@@ -250,7 +396,7 @@ app.get('/post/:id', async (req, res) => {
   res.json(postDoc);
 });
 
-app.post('/sendEmails', (req, res) => {
+app.post('/sendEmails', async (req, res) => {
   try {
     const { subject, content, recipients } = req.body;
 
@@ -259,23 +405,31 @@ app.post('/sendEmails', (req, res) => {
       return res.status(400).json({ message: 'Recipients must be provided as an array' });
     }
 
+    // Prepare attachments
+    const attachments = [
+      {
+        filename: 'sample.png',
+        path: './uploads/sample.png'
+      },
+      {
+        filename: 'sample.jpg',
+        path: './uploads/sample.jpg'
+      }
+    ];
+
     // Iterate over recipients and send email to each one
     for (const recipient of recipients) {
       const mailOptions = {
         from: 'shashanksuggala@yahoo.com',
         to: recipient,
         subject: subject || 'No Subject',
-        text: content || 'No Content'
+        text: content || 'No Content',
+        attachments: attachments
       };
 
       // Send email
-      transporter.sendMail(mailOptions, function(error, info) {
-        if (error) {
-          console.log('Error sending email:', error);
-        } else {
-          console.log('Email sent:', info.response);
-        }
-      });
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Email sent:', info.response);
     }
 
     res.status(200).json({ message: 'Emails sent successfully' });
