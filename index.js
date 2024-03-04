@@ -13,6 +13,7 @@ const multer = require('multer');
 const axios = require('axios');
 const excelToJson = require('convert-excel-to-json');
 const nodemailer = require('nodemailer');
+const bodyParser = require('body-parser');
 const fs = require('fs');
 
 const uploadMiddleware = multer({ 
@@ -54,7 +55,7 @@ const projectUpload = multer({ storage: projectStorage });
 const salt = bcrypt.genSaltSync(10);
 const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 
-app.use(cors({credentials:true,origin:'http://localhost:3001'}));
+app.use(cors({credentials:true,origin:'http://localhost:3000'}));
 app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(__dirname + '/uploads'));
@@ -67,6 +68,10 @@ mongoose.connect(mongoUrl, {
 }).then(() => {console.log("Connected to database");
 })
 .catch((e)=>console.log(e));
+
+
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.post('/register', async (req,res) => {
   const {username,password} = req.body;
@@ -398,33 +403,26 @@ app.get('/post/:id', async (req, res) => {
 
 app.post('/sendEmails', async (req, res) => {
   try {
-    const { subject, content, recipients } = req.body;
+    const { subject, content, recipients, attachments } = req.body;
 
     // Check if recipients are provided
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return res.status(400).json({ message: 'Recipients must be provided as an array' });
     }
 
-    // Prepare attachments
-    const attachments = [
-      {
-        filename: 'sample.png',
-        path: './uploads/sample.png'
-      },
-      {
-        filename: 'sample.jpg',
-        path: './uploads/sample.jpg'
-      }
-    ];
+    // Check if attachments are provided
+    if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
+      return res.status(400).json({ message: 'Attachments must be provided as an array' });
+    }
 
     // Iterate over recipients and send email to each one
-    for (const recipient of recipients) {
+    for (let i = 0; i < recipients.length; i++) {
       const mailOptions = {
         from: 'shashanksuggala@yahoo.com',
-        to: recipient,
+        to: recipients[i],
         subject: subject || 'No Subject',
         text: content || 'No Content',
-        attachments: attachments
+        attachments: [attachments[i] || attachments[0]] // Use the attachment corresponding to the current recipient or fallback to the first attachment
       };
 
       // Send email
@@ -438,6 +436,7 @@ app.post('/sendEmails', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 app.listen(4000, () => {
