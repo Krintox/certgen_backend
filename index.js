@@ -55,6 +55,10 @@ const projectUpload = multer({ storage: projectStorage });
 const salt = bcrypt.genSaltSync(10);
 const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 
+
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(cors({credentials:true,origin:'http://localhost:3000'}));
 app.use(express.json());
 app.use(cookieParser());
@@ -68,10 +72,6 @@ mongoose.connect(mongoUrl, {
 }).then(() => {console.log("Connected to database");
 })
 .catch((e)=>console.log(e));
-
-
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.post('/register', async (req,res) => {
   const {username,password} = req.body;
@@ -265,9 +265,11 @@ app.post('/profile123', upload.single('profileImage'), async (req, res) => {
 
 // POST /createProject endpoint
 
-app.post('/createProject', projectUpload.fields([{ name: 'excelFile', maxCount: 1 }, { name: 'imageFile', maxCount: 1 }, { name: 'arrayOfImages', maxCount: 30 }]), async (req, res) => {
+// Endpoint for creating project title and description
+app.post('/createProject/titleDesc', async (req, res) => {
   try {
     const { token } = req.cookies;
+    const { title, description } = req.body;
 
     // Verify JWT token
     jwt.verify(token, secret, {}, async (err, info) => {
@@ -275,34 +277,65 @@ app.post('/createProject', projectUpload.fields([{ name: 'excelFile', maxCount: 
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
-      const { title } = req.body;
-      const excelFile = req.files['excelFile'][0].filename;
-      const imageFile = req.files['imageFile'][0].filename;
-      const arrayOfImages = req.files['arrayOfImages'].map(file => file.filename);
+      // Generate a new projectId
+      const projectId = new mongoose.Types.ObjectId();
 
-      // Create new project
+      // Create new project with title, description, and projectId
       const project = new Project({
         userId: info.id,
+        projectId: projectId,
         title,
-        excelFile,
-        imageFile,
-        arrayOfImages
+        description,
       });
 
       await project.save();
 
-      res.status(201).json({ message: 'Project created successfully' });
+      // Include projectId in the cookies
+      res.cookie('projectId', projectId.toString(), { httpOnly: true }).status(201).json({ message: 'Project title and description created successfully' });
     });
   } catch (error) {
-    console.error('Error creating project:', error);
+    console.error('Error creating project title and description:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-// GET endpoint to retrieve project details
-app.get('/projects', async (req, res) => {
+// Endpoint for uploading project image
+// Endpoint for uploading project image
+app.post('/createProject/image', projectUpload.single('imageFile'), async (req, res) => {
   try {
     const { token } = req.cookies;
+    const { filename } = req.file;
+
+    // Verify JWT token and extract user ID
+    jwt.verify(token, secret, {}, async (err, decodedToken) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      const userId = decodedToken.userId;
+      const projectId = req.body.projectId;
+
+      // Update project with image filename
+      await Project.findOneAndUpdate(
+        { userId, projectId },
+        { imageFile: filename }
+      );
+
+      res.status(200).json({ message: 'Project image uploaded successfully' });
+    });
+  } catch (error) {
+    console.error('Error uploading project image:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+
+// Endpoint for uploading project excel file
+app.post('/createProject/excel', projectUpload.single('excelFile'), async (req, res) => {
+  try {
+    const { token } = req.cookies;
+    const { filename } = req.file;
 
     // Verify JWT token
     jwt.verify(token, secret, {}, async (err, info) => {
@@ -310,11 +343,60 @@ app.get('/projects', async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
-      // Get user ID from JWT payload
-      const userId = info.id;
+      // Update project with excel filename
+      await Project.findOneAndUpdate(
+        { userId: info.id },
+        { excelFile: filename }
+      );
 
-      // Find projects belonging to the user
-      const projects = await Project.find({ userId });
+      res.status(200).json({ message: 'Project excel file uploaded successfully' });
+    });
+  } catch (error) {
+    console.error('Error uploading project excel file:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Endpoint for uploading project array of images
+app.post('/createProject/arrayImages', projectUpload.array('arrayOfImages', 30), async (req, res) => {
+  try {
+    const { token } = req.cookies;
+    const filenames = req.files.map(file => file.filename);
+
+    // Verify JWT token
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      // Update project with array of image filenames
+      await Project.findOneAndUpdate(
+        { userId: info.id },
+        { arrayOfImages: filenames }
+      );
+
+      res.status(200).json({ message: 'Project array of images uploaded successfully' });
+    });
+  } catch (error) {
+    console.error('Error uploading project array of images:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Modify the GET endpoint to get projects of the authenticated user
+app.get('/projects', async (req, res) => {
+  try {
+    const { token } = req.cookies;
+
+    // Verify JWT token to get the user's ID
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      // Find projects associated with the user's ID
+      const projects = await Project.find({ userId: info.id });
 
       res.json(projects);
     });
@@ -324,6 +406,8 @@ app.get('/projects', async (req, res) => {
   }
 });
 
+
+// Modify the GET endpoint to get all parameters of a specific project
 app.get('/projects/:id', async (req, res) => {
   try {
     const { token } = req.cookies;
@@ -334,11 +418,8 @@ app.get('/projects/:id', async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
-      // Get user ID from JWT payload
-      const userId = info.id;
-
-      // Find the project by ID and ensure it belongs to the user
-      const project = await Project.findOne({ _id: req.params.id, userId });
+      // Find the project by ID
+      const project = await Project.findById(req.params.id);
 
       if (!project) {
         return res.status(404).json({ message: 'Project not found' });
@@ -351,6 +432,7 @@ app.get('/projects/:id', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 
@@ -405,15 +487,13 @@ app.post('/sendEmails', async (req, res) => {
   try {
     const { subject, content, recipients, attachments } = req.body;
 
-    // Check if recipients are provided
-    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-      return res.status(400).json({ message: 'Recipients must be provided as an array' });
+    // Check if recipients and attachments are provided
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !attachments || !Array.isArray(attachments) || attachments.length === 0) {
+      return res.status(400).json({ message: 'Recipients and attachments must be provided as arrays' });
     }
 
-    // Check if attachments are provided
-    if (!attachments || !Array.isArray(attachments) || attachments.length === 0) {
-      return res.status(400).json({ message: 'Attachments must be provided as an array' });
-    }
+    // Log attachments array received
+    console.log('Attachments received:', attachments);
 
     // Iterate over recipients and send email to each one
     for (let i = 0; i < recipients.length; i++) {
@@ -422,7 +502,11 @@ app.post('/sendEmails', async (req, res) => {
         to: recipients[i],
         subject: subject || 'No Subject',
         text: content || 'No Content',
-        attachments: [attachments[i] || attachments[0]] // Use the attachment corresponding to the current recipient or fallback to the first attachment
+        attachments: [{
+          filename: `image_${i + 1}.png`,
+          content: attachments[i].content,
+          encoding: 'base64'
+        }] // Attach image data directly
       };
 
       // Send email
@@ -436,6 +520,9 @@ app.post('/sendEmails', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+
+
 
 
 
