@@ -523,8 +523,9 @@ app.post('/sendEmails', async (req, res) => {
 
 
 
-
-
+app.get('/', (req, res) => {
+  res.send('Server is up and running');
+});
 
 app.listen(4000, () => {
   console.log("Server started at port 4000");
