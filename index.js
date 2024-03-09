@@ -59,7 +59,7 @@ const secret = 'asdfe45we45w345wegw345werjktjwertkj';
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-const allowedOrigins = ['http://localhost:3000','http://localhost:3001', 'https://certgen-frontend.vercel.app/'];
+const allowedOrigins = ['http://localhost:3000','http://localhost:3001', 'https://certgen-frontend.vercel.app'];
 app.use(cors({
   credentials: true,
   origin: allowedOrigins,
@@ -529,7 +529,7 @@ app.post('/sendEmails', async (req, res) => {
 
 
 app.get('/', (req, res) => {
-  res.send('Server is up and running 11');
+  res.send('Server is up and running 12');
 });
 
 app.listen(4000, () => {
