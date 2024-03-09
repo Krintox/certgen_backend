@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run compile"
+    "build": "echo \"No build step required for Express.js application.\"  // Optional placeholder"
   },
   "author": "",
   "license": "ISC",
