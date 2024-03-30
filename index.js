@@ -543,7 +543,7 @@ app.post('/sendEmails', async (req, res) => {
 
 
 app.get('/', (req, res) => {
-  res.send('Server is up and running 12');
+  res.send('Server is up and running');
 });
 
 app.listen(4000, () => {
