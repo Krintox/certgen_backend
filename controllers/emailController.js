@@ -16,15 +16,15 @@ const sendEmails = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
+        user: 'fullmovies9205@gmail.com',
+        pass: 'yybu djqi koef tynx',
       },
     });
 
     // Iterate over recipients and send email to each one
     for (let i = 0; i < recipients.length; i++) {
       const mailOptions = {
-        from: process.env.EMAIL_USERNAME,
+        from: 'fullmovies9205@gmail.com',
         to: recipients[i],
         subject: subject || 'No Subject',
         text: content || 'No Content',

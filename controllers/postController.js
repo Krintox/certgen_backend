@@ -1,7 +1,7 @@
 const Post = require('../models/Post');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const secret = process.env.JWT_SECRET;
+const secret = "asdfe45we45w345wegw345werjktjwertkj";
 
 exports.createPost = async (req, res) => {
   try {

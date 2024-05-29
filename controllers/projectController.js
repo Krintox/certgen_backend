@@ -1,7 +1,7 @@
 const Project = require('../models/Project');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
-const secret = process.env.JWT_SECRET;
+const secret = "asdfe45we45w345wegw345werjktjwertkj";
 const { ValidationError } = require('mongoose').Error;
 
 exports.createProject = async (req, res) => {

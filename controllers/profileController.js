@@ -2,7 +2,7 @@ const Profile = require('../models/Profile');
 const User = require('../models/User');
 const Project = require('../models/Project');
 const jwt = require('jsonwebtoken');
-const secret = process.env.JWT_SECRET;
+const secret = "asdfe45we45w345wegw345werjktjwertkj";
 
 exports.createProfile = async (req, res) => {
   try {
