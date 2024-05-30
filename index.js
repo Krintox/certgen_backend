@@ -1,24 +1,24 @@
 require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-// const mongoose = require("mongoose");
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-// const connectDB = require('./config/db'); // Import the database connection function
 
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const projectRoutes = require('./routes/projectRoutes');
-const emailRoutes = require('./routes/emailRoutes')
+const emailRoutes = require('./routes/emailRoutes');
 
 const app = express();
 
+// Middleware configuration
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-const allowedOrigins = ['http://localhost:3000','http://localhost:3001', 'https://certgen-frontend.vercel.app', 'certgen-frontend.vercel.app'];
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://certgen-frontend.vercel.app', 'certgen-frontend.vercel.app'];
 app.use(cors({
   credentials: true,
   origin: allowedOrigins,
@@ -27,6 +27,9 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(__dirname + '/uploads'));
+
+// Mongoose configuration
+mongoose.set('strictQuery', false);
 
 let dbStatus = 'Not connected';
 
@@ -49,6 +52,7 @@ connectDB().then(() => {
   dbStatus = `Error connecting to the database: ${error.message}`;
 });
 
+// Routes configuration
 app.use('/auth', authRoutes);
 app.use('/posts', postRoutes);
 app.use('/profile', profileRoutes);
