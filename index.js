@@ -21,7 +21,15 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'https://certgen-frontend.vercel.app', 'certgen-frontend.vercel.app'];
 app.use(cors({
   credentials: true,
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  }
 }));
 
 app.use(express.json());
@@ -60,7 +68,7 @@ app.use('/projects', projectRoutes);
 app.use('/email', emailRoutes);
 
 app.get('/', (req, res) => {
-  res.send(`Server is up and running 🎉🎉. ${dbStatus}`);
+  res.send(`Server is up and running 🎉. ${dbStatus}`);
 });
 
 const PORT = process.env.PORT || 4000;
