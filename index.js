@@ -32,7 +32,7 @@ let dbStatus = 'Not connected';
 
 const connectDB = async () => {
   try {
-    await mongoose.connect("mongodb+srv://adminuser:krintox@cluster0.khivago.mongodb.net/", {
+    await mongoose.connect("mongodb+srv://krintox:krintox@cluster0.khivago.mongodb.net/", {
       useNewUrlParser: true,
     });
     console.log("Connected to database");
