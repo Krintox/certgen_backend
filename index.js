@@ -1,10 +1,11 @@
 require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 // const mongoose = require("mongoose");
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-const connectDB = require('./config/db'); // Import the database connection function
+// const connectDB = require('./config/db'); // Import the database connection function
 
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
@@ -29,6 +30,18 @@ app.use('/uploads', express.static(__dirname + '/uploads'));
 
 let dbStatus = 'Not connected';
 
+const connectDB = async () => {
+  try {
+    await mongoose.connect("mongodb+srv://adminuser:krintox@cluster0.khivago.mongodb.net/", {
+      useNewUrlParser: true,
+    });
+    console.log("Connected to database");
+  } catch (error) {
+    console.error('Error connecting to the database', error);
+    process.exit(1);
+  }
+};
+
 // Connect to the database
 connectDB().then(() => {
   dbStatus = 'Connected to database';
@@ -43,7 +56,7 @@ app.use('/projects', projectRoutes);
 app.use('/email', emailRoutes);
 
 app.get('/', (req, res) => {
-  res.send(`Server is up and running newCMUR. ${dbStatus}`);
+  res.send(`Server is up and running. ${dbStatus}`);
 });
 
 const PORT = process.env.PORT || 4000;
