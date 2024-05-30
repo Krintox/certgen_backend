@@ -56,7 +56,7 @@ app.use('/projects', projectRoutes);
 app.use('/email', emailRoutes);
 
 app.get('/', (req, res) => {
-  res.send(`Server is up and running. ${dbStatus}`);
+  res.send(`Server is up and running 🎉🎉. ${dbStatus}`);
 });
 
 const PORT = process.env.PORT || 4000;
