@@ -1,3 +1,5 @@
+// projectRoutes.js
+
 const express = require('express');
 const projectController = require('../controllers/projectController');
 const uploadMiddleware = require('../middlewares/uploadMiddleware');
@@ -8,5 +10,6 @@ router.post('/upload-images/:projectId', uploadMiddleware.array('files'), projec
 router.post('/upload-image/:projectId', uploadMiddleware.single('file'), projectController.uploadImage);
 router.post('/upload-excel/:projectId', uploadMiddleware.single('file'), projectController.uploadExcel);
 router.get('/', projectController.getProject);
+router.get('/:projectId', projectController.getProjectById);
 
 module.exports = router;

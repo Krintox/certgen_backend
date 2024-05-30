@@ -142,3 +142,20 @@ exports.getProject = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
+exports.getProjectById = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error in getProjectById endpoint:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
