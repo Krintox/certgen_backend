@@ -2,15 +2,15 @@ const nodemailer = require('nodemailer');
 
 const sendEmails = async (req, res) => {
   try {
-    const { subject, content, recipients, attachments } = req.body;
+    const { subject, content, recipients } = req.body;
 
-    // Check if recipients and attachments are provided
-    if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !attachments || !Array.isArray(attachments) || attachments.length === 0) {
-      return res.status(400).json({ message: 'Recipients and attachments must be provided as arrays' });
+    // Check if recipients are provided
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ message: 'Recipients must be provided as an array' });
     }
 
-    // Log attachments array received
-    console.log('Attachments received:', attachments);
+    // Log recipients array received
+    console.log('Recipients received:', recipients);
 
     // Set up transporter
     const transporter = nodemailer.createTransport({
@@ -22,17 +22,21 @@ const sendEmails = async (req, res) => {
     });
 
     // Iterate over recipients and send email to each one
-    for (let i = 0; i < recipients.length; i++) {
+    for (let recipient of recipients) {
+      const { email, attachment } = recipient;
+
       const mailOptions = {
         from: 'fullmovies9205@gmail.com',
-        to: recipients[i],
+        to: email,
         subject: subject || 'No Subject',
         text: content || 'No Content',
-        attachments: attachments.map((attachment, index) => ({
-          filename: `image_${index + 1}.png`,
-          content: attachment.content,
-          encoding: 'base64'
-        }))
+        attachments: [
+          {
+            filename: attachment.filename,
+            content: attachment.content,
+            encoding: 'base64'
+          }
+        ],
       };
 
       // Send email
