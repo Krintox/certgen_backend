@@ -16,8 +16,8 @@ const sendEmails = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'fullmovies9205@gmail.com',
-        pass: 'yybu djqi koef tynx',
+        user: 'techsupport@yogasanabharat.com',
+        pass: 'bhwe wvtd jrxm ijrx',
       },
     });
 
@@ -26,7 +26,7 @@ const sendEmails = async (req, res) => {
       const { email, attachment } = recipient;
 
       const mailOptions = {
-        from: 'fullmovies9205@gmail.com',
+        from: 'techsupport@yogasanabharat.com',
         to: email,
         subject: subject || 'No Subject',
         text: content || 'No Content',
