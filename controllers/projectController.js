@@ -1,8 +1,6 @@
 const Project = require('../models/Project');
 const jwt = require('jsonwebtoken');
-const fs = require('fs');
 const secret = "asdfe45we45w345wegw345werjktjwertkj";
-const { ValidationError } = require('mongoose').Error;
 
 exports.createProject = async (req, res) => {
   try {
@@ -11,7 +9,7 @@ exports.createProject = async (req, res) => {
       if (err) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
-      const { title, description } = req.body;
+      const { title, description, photos } = req.body;
       const authorId = info.id;
 
       if (!title || !description) {
@@ -21,6 +19,7 @@ exports.createProject = async (req, res) => {
       const project = new Project({
         title,
         description,
+        photos: photos || [], // Save the array of image links
         authorId,
       });
       await project.save();
@@ -28,12 +27,6 @@ exports.createProject = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in createProject endpoint:', error);
-
-    if (error instanceof ValidationError) {
-      const errorMessages = Object.values(error.errors).map(error => error.message);
-      return res.status(400).json({ message: 'Validation failed', errors: errorMessages });
-    }
-
     res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -41,10 +34,10 @@ exports.createProject = async (req, res) => {
 exports.uploadImages = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const files = req.files || [];
+    const { photos } = req.body;
 
-    if (!files.length) {
-      return res.status(400).json({ message: 'No files uploaded' });
+    if (!photos || !Array.isArray(photos) || photos.length === 0) {
+      return res.status(400).json({ message: 'No image links provided' });
     }
 
     const project = await Project.findById(projectId);
@@ -52,15 +45,7 @@ exports.uploadImages = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    const projectPhotos = [];
-    for (let file of files) {
-      const fileExtension = file.originalname.split('.').pop();
-      const newPath = `${file.path}.${fileExtension}`;
-      fs.renameSync(file.path, newPath);
-      projectPhotos.push(newPath);
-    }
-
-    project.photos = project.photos.concat(projectPhotos);
+    project.photos = project.photos.concat(photos);
     await project.save();
     res.json({ message: 'Images uploaded successfully' });
   } catch (error) {
@@ -72,10 +57,10 @@ exports.uploadImages = async (req, res) => {
 exports.uploadImage = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const file = req.file;
+    const { photo } = req.body;
 
-    if (!file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+    if (!photo) {
+      return res.status(400).json({ message: 'No image link provided' });
     }
 
     const project = await Project.findById(projectId);
@@ -83,11 +68,7 @@ exports.uploadImage = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    const fileExtension = file.originalname.split('.').pop();
-    const newPath = `${file.path}.${fileExtension}`;
-    fs.renameSync(file.path, newPath);
-
-    project.coverImage = newPath;
+    project.photos.push(photo);
     await project.save();
     res.json({ message: 'Image uploaded successfully' });
   } catch (error) {
@@ -142,7 +123,6 @@ exports.getProject = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 
 exports.getProjectById = async (req, res) => {
   try {
