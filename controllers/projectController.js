@@ -12,14 +12,14 @@ exports.createProject = async (req, res) => {
       const { title, description, photos } = req.body;
       const authorId = info.id;
 
-      if (!title || !description) {
-        return res.status(400).json({ message: 'Title and description are required' });
+      if (!title || !description || !photos || photos.length === 0) {
+        return res.status(400).json({ message: 'Title, description, and at least one photo are required' });
       }
 
       const project = new Project({
         title,
         description,
-        photos: photos || [], // Save the array of image links
+        photos,
         authorId,
       });
       await project.save();
@@ -45,7 +45,18 @@ exports.uploadImages = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    project.photos = project.photos.concat(photos);
+    // Ensure that each photo has both imageId and imageUrl
+    const newPhotosArray = photos.map((photo, index) => {
+      if (!photo.imageId || !photo.imageUrl) {
+        throw new Error('Each photo must have both imageId and imageUrl');
+      }
+      return {
+        imageId: photo.imageId,
+        imageUrl: photo.imageUrl,
+      };
+    });
+
+    project.photos = project.photos.concat(newPhotosArray);
     await project.save();
     res.json({ message: 'Images uploaded successfully' });
   } catch (error) {
@@ -54,13 +65,14 @@ exports.uploadImages = async (req, res) => {
   }
 };
 
+
 exports.uploadImage = async (req, res) => {
   try {
     const { projectId } = req.params;
     const { photo } = req.body;
 
-    if (!photo) {
-      return res.status(400).json({ message: 'No image link provided' });
+    if (!photo || !photo.imageUrl || !photo.imageId) {
+      return res.status(400).json({ message: 'Image link and image ID must be provided' });
     }
 
     const project = await Project.findById(projectId);
@@ -68,38 +80,11 @@ exports.uploadImage = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    project.photos.push(photo);
+    project.photos.push({ imageId: photo.imageId, imageUrl: photo.imageUrl });
     await project.save();
     res.json({ message: 'Image uploaded successfully' });
   } catch (error) {
     console.error('Error in uploadImage endpoint:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-exports.uploadExcel = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-
-    const fileExtension = file.originalname.split('.').pop();
-    const newPath = `${file.path}.${fileExtension}`;
-    fs.renameSync(file.path, newPath);
-
-    project.excelFile = newPath;
-    await project.save();
-    res.json({ message: 'Excel file uploaded successfully' });
-  } catch (error) {
-    console.error('Error in uploadExcel endpoint:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
