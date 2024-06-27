@@ -9,17 +9,16 @@ exports.createProject = async (req, res) => {
       if (err) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
-      const { title, description, photos } = req.body;
+      const { title, description } = req.body;
       const authorId = info.id;
 
-      if (!title || !description || !photos || photos.length === 0) {
+      if (!title || !description) {
         return res.status(400).json({ message: 'Title, description, and at least one photo are required' });
       }
 
       const project = new Project({
         title,
         description,
-        photos,
         authorId,
       });
       await project.save();
