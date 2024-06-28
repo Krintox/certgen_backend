@@ -13,7 +13,7 @@ exports.createProject = async (req, res) => {
       const authorId = info.id;
 
       if (!title || !description) {
-        return res.status(400).json({ message: 'Title, description, and at least one photo are required' });
+        return res.status(400).json({ message: 'Title and description are required' });
       }
 
       const project = new Project({
@@ -64,7 +64,6 @@ exports.uploadImages = async (req, res) => {
   }
 };
 
-
 exports.uploadImage = async (req, res) => {
   try {
     const { projectId } = req.params;
@@ -96,7 +95,7 @@ exports.getProject = async (req, res) => {
         return res.status(401).json({ message: 'Unauthorized' });
       }
       const authorId = info.id;
-      const project = await Project.findOne({ authorId });
+      const project = await Project.find({ authorId });
       if (!project) {
         return res.status(404).json({ message: 'Project not found for this user' });
       }
@@ -120,6 +119,49 @@ exports.getProjectById = async (req, res) => {
     res.json(project);
   } catch (error) {
     console.error('Error in getProjectById endpoint:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getUserProjectImages = async (req, res) => {
+  try {
+    const { token } = req.cookies;
+    jwt.verify(token, secret, {}, async (err, info) => {
+      if (err) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      const authorId = info.id;
+      const projects = await Project.find({ authorId });
+
+      const images = projects.map(project => ({
+        projectId: project._id,
+        images: project.photos.map(photo => ({
+          imageId: photo.imageId,
+          imageUrl: photo.imageUrl
+        }))
+      }));
+
+      res.json(images);
+    });
+  } catch (error) {
+    console.error('Error in getUserProjectImages endpoint:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+exports.getImageById = async (req, res) => {
+  try {
+    const { imageId } = req.params;
+    const project = await Project.findOne({ 'photos.imageId': imageId });
+
+    if (!project) {
+      return res.status(404).json({ message: 'Image not found' });
+    }
+
+    const photo = project.photos.find(photo => photo.imageId === imageId);
+    res.json({ imageUrl: photo.imageUrl });
+  } catch (error) {
+    console.error('Error in getImageById endpoint:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
