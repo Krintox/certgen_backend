@@ -160,18 +160,18 @@ exports.getUserProjectImages = async (req, res) => {
 
 exports.getImageById = async (req, res) => {
   try {
-    const { authorization } = req.headers;
-    if (!authorization || !authorization.startsWith('Basic ')) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
+    // const { authorization } = req.headers;
+    // if (!authorization || !authorization.startsWith('Basic ')) {
+    //   return res.status(401).json({ message: 'Unauthorized' });
+    // }
 
-    const base64Credentials = authorization.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-    const [username, password] = credentials.split(':');
+    // const base64Credentials = authorization.split(' ')[1];
+    // const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+    // const [username, password] = credentials.split(':');
 
-    if (!isAdmin(username, password)) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
+    // if (!isAdmin(username, password)) {
+    //   return res.status(403).json({ message: 'Forbidden' });
+    // }
 
     const { imageId } = req.params;
     const project = await Project.findOne({ 'photos.imageId': imageId });
