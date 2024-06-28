@@ -2,6 +2,15 @@ const Project = require('../models/Project');
 const jwt = require('jsonwebtoken');
 const secret = "asdfe45we45w345wegw345werjktjwertkj";
 
+const adminCredentials = {
+  username: "certqwerty89053",
+  password: "touiop37873"
+};
+
+const isAdmin = (username, password) => {
+  return username === adminCredentials.username && password === adminCredentials.password;
+};
+
 exports.createProject = async (req, res) => {
   try {
     const { token } = req.cookies;
@@ -151,6 +160,19 @@ exports.getUserProjectImages = async (req, res) => {
 
 exports.getImageById = async (req, res) => {
   try {
+    const { authorization } = req.headers;
+    if (!authorization || !authorization.startsWith('Basic ')) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const base64Credentials = authorization.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+    const [username, password] = credentials.split(':');
+
+    if (!isAdmin(username, password)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const { imageId } = req.params;
     const project = await Project.findOne({ 'photos.imageId': imageId });
 
